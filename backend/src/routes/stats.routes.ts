@@ -4,7 +4,6 @@ import { authMiddleware } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-// Get server statistics (protected route)
 router.get('/server', authMiddleware, getServerStats);
 
 export default router;

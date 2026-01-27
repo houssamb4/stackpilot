@@ -1,6 +1,7 @@
 import os from 'os';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import si from 'systeminformation';
 
 const execAsync = promisify(exec);
 
@@ -55,26 +56,12 @@ export class StatsService {
     };
   }
 
-  private getCpuInfo(): CpuInfo {
+  private async getCpuInfo(): Promise<CpuInfo> {
     const cpus = os.cpus();
+    const load = await si.currentLoad();
     
-    // Calculate average CPU usage
-    let totalIdle = 0;
-    let totalTick = 0;
-
-    cpus.forEach((cpu) => {
-      for (const type in cpu.times) {
-        totalTick += cpu.times[type as keyof typeof cpu.times];
-      }
-      totalIdle += cpu.times.idle;
-    });
-
-    const idle = totalIdle / cpus.length;
-    const total = totalTick / cpus.length;
-    const usage = 100 - Math.round((100 * idle) / total);
-
     return {
-      usage,
+      usage: Math.round(load.currentLoad * 10) / 10, // Round to 1 decimal
       cores: cpus.length,
       model: cpus[0]?.model || 'Unknown',
     };
@@ -82,31 +69,20 @@ export class StatsService {
 
   private async getDiskInfo(): Promise<DiskInfo> {
     try {
-      // Windows command to get disk info for C: drive
-      const { stdout } = await execAsync('wmic logicaldisk where "DeviceID=\'C:\'" get Size,FreeSpace /format:list');
+      const fsSize = await si.fsSize();
       
-      // Parse the output
-      const lines = stdout.split('\n').filter(line => line.trim());
-      let size = 0;
-      let freeSpace = 0;
+      if (fsSize.length === 0) {
+        throw new Error('No disk information available');
+      }
+
+      // Get the main drive (C: on Windows, / on Linux)
+      const mainDrive = fsSize[0];
       
-      lines.forEach(line => {
-        if (line.startsWith('FreeSpace=')) {
-          freeSpace = parseInt(line.split('=')[1]);
-        } else if (line.startsWith('Size=')) {
-          size = parseInt(line.split('=')[1]);
-        }
-      });
-
-      const total = size;
-      const free = freeSpace;
-      const used = total - free;
-
       return {
-        total: Math.round(total / (1024 * 1024 * 1024)), // GB
-        used: Math.round(used / (1024 * 1024 * 1024)), // GB
-        free: Math.round(free / (1024 * 1024 * 1024)), // GB
-        usedPercent: total > 0 ? Math.round((used / total) * 100) : 0,
+        total: Math.round(mainDrive.size / (1024 * 1024 * 1024)), // GB
+        used: Math.round(mainDrive.used / (1024 * 1024 * 1024)), // GB
+        free: Math.round((mainDrive.size - mainDrive.used) / (1024 * 1024 * 1024)), // GB
+        usedPercent: Math.round(mainDrive.use), // Already in percentage
       };
     } catch (error) {
       console.error('Failed to get disk info:', error);
@@ -131,7 +107,7 @@ export class StatsService {
   async getServerStats(): Promise<ServerStats> {
     const [memory, cpu, disk, load] = await Promise.all([
       Promise.resolve(this.getMemoryInfo()),
-      Promise.resolve(this.getCpuInfo()),
+      this.getCpuInfo(), // Now properly awaits async CPU calculation
       this.getDiskInfo(),
       Promise.resolve(this.getLoadInfo()),
     ]);

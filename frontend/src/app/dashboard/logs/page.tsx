@@ -1,19 +1,52 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText, Search } from 'lucide-react';
+import { FileText, Search, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Loader } from '@/components/Loader';
+
+interface SystemLog {
+  timestamp: string;
+  level: string;
+  source: string;
+  message: string;
+}
 
 export default function LogsPage() {
-  const logs = [
-    { id: 1, timestamp: '2026-01-27 15:45:23', level: 'INFO', message: 'Server started successfully', source: 'system' },
-    { id: 2, timestamp: '2026-01-27 15:45:45', level: 'INFO', message: 'Database connection established', source: 'database' },
-    { id: 3, timestamp: '2026-01-27 15:46:12', level: 'WARNING', message: 'High memory usage detected', source: 'monitor' },
-    { id: 4, timestamp: '2026-01-27 15:47:03', level: 'ERROR', message: 'API request timeout', source: 'api' },
-    { id: 5, timestamp: '2026-01-27 15:48:15', level: 'INFO', message: 'Backup job completed', source: 'backup' },
-    { id: 6, timestamp: '2026-01-27 15:49:22', level: 'INFO', message: 'User authentication successful', source: 'auth' },
-    { id: 7, timestamp: '2026-01-27 15:50:11', level: 'WARNING', message: 'Cache miss rate above threshold', source: 'cache' },
-  ];
+  const [logs, setLogs] = useState<SystemLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    fetchLogs();
+  }, []);
+
+  const fetchLogs = async () => {
+    setRefreshing(true);
+    try {
+      const response = await fetch('http://localhost:3000/api/metrics/logs', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      const data = await response.json();
+      setLogs(data.logs || []);
+    } catch (error) {
+      console.error('Failed to fetch logs:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const filteredLogs = logs.filter(log => 
+    log.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    log.source.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    log.level.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const getLevelColor = (level: string) => {
     switch (level) {
@@ -26,9 +59,28 @@ export default function LogsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">System Logs</h1>
-        <p className="mt-2 text-gray-600">View and search system logs</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">System Logs</h1>
+          <p className="mt-2 text-gray-600">Real-time system events and logs</p>
+        </div>
+        <Button 
+          onClick={fetchLogs} 
+          disabled={refreshing}
+          variant="outline"
+        >
+          {refreshing ? (
+            <>
+              <Loader size={16} />
+              <span className="ml-2">Refreshing...</span>
+            </>
+          ) : (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </>
+          )}
+        </Button>
       </div>
 
       <Card className="border-0 shadow-lg">
@@ -37,25 +89,42 @@ export default function LogsPage() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input 
-                placeholder="Search logs..." 
+                placeholder="Search logs by message, source, or level..." 
                 className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
+            </div>
+            <div className="text-sm text-gray-500">
+              {filteredLogs.length} logs
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {logs.map((log) => (
-              <div key={log.id} className="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors font-mono text-sm">
-                <span className="text-gray-500">{log.timestamp}</span>
-                <span className={`px-2 py-1 rounded text-xs font-semibold ${getLevelColor(log.level)}`}>
-                  {log.level}
-                </span>
-                <span className="text-gray-400">[{log.source}]</span>
-                <span className="text-gray-900 flex-1">{log.message}</span>
-              </div>
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader size={48} />
+            </div>
+          ) : filteredLogs.length === 0 ? (
+            <p className="text-center text-gray-500 py-12">
+              {searchQuery ? 'No logs match your search' : 'No logs available'}
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-[600px] overflow-y-auto">
+              {filteredLogs.map((log, index) => (
+                <div key={index} className="flex items-start space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors text-sm border-b border-gray-100 last:border-0">
+                  <span className="text-gray-500 text-xs whitespace-nowrap">
+                    {new Date(log.timestamp).toLocaleString()}
+                  </span>
+                  <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${getLevelColor(log.level)}`}>
+                    {log.level}
+                  </span>
+                  <span className="text-gray-400 text-xs font-mono whitespace-nowrap">[{log.source}]</span>
+                  <span className="text-gray-900 flex-1 break-words">{log.message}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -9,6 +9,7 @@ import { Activity, Server, Cpu, HardDrive, Clock, AlertCircle, TrendingUp, Zap }
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { LoaderFullPage } from '@/components/Loader';
 
 // Generate mock CPU history data
 const generateCpuHistory = (currentCpu: number) => {
@@ -53,7 +54,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchStats();
-    const interval = setInterval(fetchStats, 5000);
+    const interval = setInterval(fetchStats, 10000); // Update every 10 seconds
     return () => clearInterval(interval);
   }, []);
 
@@ -87,6 +88,10 @@ export default function DashboardPage() {
     { name: 'Disk', value: stats.disk.usedPercent, color: '#10b981' },
   ] : [];
 
+  if (loading) {
+    return <LoaderFullPage />;
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -99,7 +104,6 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center space-x-2">
           <div className={`w-2 h-2 rounded-full ${stats && !error ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-          <span className="text-sm text-gray-600">{stats && !error ? 'Live' : 'Offline'}</span>
         </div>
       </div>
 
@@ -250,69 +254,6 @@ export default function DashboardPage() {
                 <Bar dataKey="outgoing" fill="#f59e0b" name="Outgoing" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Bottom Section */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Resource Distribution */}
-        <Card className="border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle>Resource Distribution</CardTitle>
-            <CardDescription>Current usage breakdown</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={resourceDistribution}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={(entry) => `${entry.name}: ${entry.value}%`}
-                >
-                  {resourceDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Active Processes */}
-        <Card className="border-0 shadow-lg lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Active Processes</CardTitle>
-            <CardDescription>Top processes by resource usage</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {mockProcesses.map((process) => (
-                <div key={process.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">{process.name}</p>
-                    <p className="text-sm text-gray-600">Status: {process.status}</p>
-                  </div>
-                  <div className="flex items-center space-x-4 text-sm">
-                    <div className="text-right">
-                      <p className="text-gray-600">CPU</p>
-                      <p className="font-semibold text-blue-600">{process.cpu}%</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-gray-600">Memory</p>
-                      <p className="font-semibold text-purple-600">{process.memory}MB</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
           </CardContent>
         </Card>
       </div>
