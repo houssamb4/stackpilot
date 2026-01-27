@@ -103,18 +103,6 @@ export default function DashboardLayout({
                   <Bell className="h-5 w-5 text-gray-600" />
                   <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full" />
                 </Button>
-
-                <div className="flex items-center space-x-3 border-l pl-4">
-                  <Avatar className="h-9 w-9">
-                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-semibold">
-                      {getInitials(user.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="hidden lg:block">
-                    <div className="text-sm font-semibold text-gray-900">{user.name}</div>
-                    <div className="text-xs text-gray-500 capitalize">{user.role.replace('_', ' ')}</div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

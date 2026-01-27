@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { pool } from '../config/database';
 import { spawn, ChildProcess } from 'child_process';
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
+import * as path from 'path';
+import * as os from 'os';
 
 // Store active processes in memory
 const activeProcesses = new Map<number, ChildProcess>();
@@ -155,8 +157,11 @@ export const startService = async (req: Request, res: Response) => {
     // Determine executable path (use venv python if provided)
     let executablePath = service.executable_path;
     if (service.venv_path && service.venv_path.trim()) {
-      // Use Python from virtual environment
-      const venvPython = `${service.venv_path}\\Scripts\\python.exe`;
+      // Use Python from virtual environment - cross-platform compatible
+      const isWindows = os.platform() === 'win32';
+      const venvPython = isWindows
+        ? path.join(service.venv_path, 'Scripts', 'python.exe')
+        : path.join(service.venv_path, 'bin', 'python');
       executablePath = venvPython;
     }
 
