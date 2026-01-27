@@ -5,19 +5,54 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient, ServerStats } from '@/lib/api';
-import { Activity, Server, Users, CheckCircle2, XCircle, Clock, TrendingUp, Zap, Eye, Cpu, HardDrive, AlertCircle } from 'lucide-react';
+import { Activity, Server, Cpu, HardDrive, Clock, AlertCircle, TrendingUp, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+
+// Generate mock CPU history data
+const generateCpuHistory = (currentCpu: number) => {
+  const data = [];
+  for (let i = 23; i >= 0; i--) {
+    data.push({
+      time: `${i}h ago`,
+      cpu: Math.max(0, Math.min(100, currentCpu + (Math.random() - 0.5) * 20)),
+      memory: Math.max(0, Math.min(100, currentCpu + (Math.random() - 0.5) * 15)),
+    });
+  }
+  return data.reverse();
+};
+
+// Generate network traffic data
+const generateNetworkData = () => {
+  return Array.from({ length: 12 }, (_, i) => ({
+    hour: `${i * 2}:00`,
+    incoming: Math.floor(Math.random() * 500) + 200,
+    outgoing: Math.floor(Math.random() * 300) + 100,
+  }));
+};
+
+// Mock processes data
+const mockProcesses = [
+  { id: 1, name: 'node.exe', cpu: 12.5, memory: 245, status: 'running' },
+  { id: 2, name: 'mysqld.exe', cpu: 8.3, memory: 512, status: 'running' },
+  { id: 3, name: 'nginx.exe', cpu: 4.2, memory: 128, status: 'running' },
+  { id: 4, name: 'redis-server.exe', cpu: 2.1, memory: 64, status: 'running' },
+  { id: 5, name: 'chrome.exe', cpu: 15.7, memory: 892, status: 'running' },
+];
+
+const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'];
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState<ServerStats | null>(null);
+  const [cpuHistory, setCpuHistory] = useState<any[]>([]);
+  const [networkData] = useState(generateNetworkData());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchStats();
-    // Refresh stats every 5 seconds
     const interval = setInterval(fetchStats, 5000);
     return () => clearInterval(interval);
   }, []);
@@ -26,6 +61,7 @@ export default function DashboardPage() {
     try {
       const data = await apiClient.getServerStats();
       setStats(data);
+      setCpuHistory(generateCpuHistory(data.cpu.usage));
       setError(null);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
@@ -45,23 +81,25 @@ export default function DashboardPage() {
     return `${minutes}m`;
   };
 
+  const resourceDistribution = stats ? [
+    { name: 'CPU', value: stats.cpu.usage, color: '#3b82f6' },
+    { name: 'Memory', value: stats.memory.usedPercent, color: '#8b5cf6' },
+    { name: 'Disk', value: stats.disk.usedPercent, color: '#10b981' },
+  ] : [];
+
   return (
-    <div className="space-y-8">
-      {/* Welcome Section */}
+    <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
-            Welcome back, {user?.name}!
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            System Dashboard
           </h1>
-          <p className="mt-2 text-gray-600">
-            Here's what's happening with your systems today
-          </p>
+          <p className="mt-2 text-gray-600">Real-time monitoring and analytics</p>
         </div>
-        <div className="hidden md:flex items-center space-x-2">
-          <div className="flex items-center space-x-1">
-            <div className={`w-2 h-2 rounded-full ${stats && !error ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-            <span className="text-sm text-gray-600">{stats && !error ? 'Live' : 'Offline'}</span>
-          </div>
+        <div className="flex items-center space-x-2">
+          <div className={`w-2 h-2 rounded-full ${stats && !error ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+          <span className="text-sm text-gray-600">{stats && !error ? 'Live' : 'Offline'}</span>
         </div>
       </div>
 
@@ -77,23 +115,18 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Stats Cards */}
+      {/* Summary Cards */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:shadow-xl transition-shadow">
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-blue-100 hover:shadow-xl transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-blue-900">CPU Usage</CardTitle>
-            <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-              <Cpu className="h-5 w-5 text-blue-600" />
-            </div>
+            <Cpu className="h-5 w-5 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-900">
+            <div className="text-3xl font-bold text-blue-900">
               {loading ? '...' : stats ? `${stats.cpu.usage}%` : 'N/A'}
             </div>
-            <p className="text-xs text-blue-700 mt-2 flex items-center">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              {stats ? `${stats.cpu.cores} cores` : 'Loading...'}
-            </p>
+            <p className="text-xs text-blue-700 mt-2">{stats ? `${stats.cpu.cores} cores` : 'Loading...'}</p>
             {stats && (
               <div className="w-full bg-blue-200 rounded-full h-2 mt-3">
                 <div 
@@ -105,21 +138,16 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-purple-100 hover:shadow-xl transition-shadow">
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-purple-100 hover:shadow-xl transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-purple-900">Memory</CardTitle>
-            <div className="h-10 w-10 rounded-full bg-purple-500/20 flex items-center justify-center">
-              <Server className="h-5 w-5 text-purple-600" />
-            </div>
+            <Server className="h-5 w-5 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-900">
+            <div className="text-3xl font-bold text-purple-900">
               {loading ? '...' : stats ? `${stats.memory.usedPercent}%` : 'N/A'}
             </div>
-            <p className="text-xs text-purple-700 mt-2 flex items-center">
-              <Zap className="h-3 w-3 mr-1" />
-              {stats ? `${stats.memory.used}GB / ${stats.memory.total}GB` : 'Loading...'}
-            </p>
+            <p className="text-xs text-purple-700 mt-2">{stats ? `${stats.memory.used}GB / ${stats.memory.total}GB` : 'Loading...'}</p>
             {stats && (
               <div className="w-full bg-purple-200 rounded-full h-2 mt-3">
                 <div 
@@ -131,21 +159,16 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-green-100 hover:shadow-xl transition-shadow">
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-green-100 hover:shadow-xl transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-green-900">Disk Space</CardTitle>
-            <div className="h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center">
-              <HardDrive className="h-5 w-5 text-green-600" />
-            </div>
+            <HardDrive className="h-5 w-5 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-900">
+            <div className="text-3xl font-bold text-green-900">
               {loading ? '...' : stats ? `${stats.disk.usedPercent}%` : 'N/A'}
             </div>
-            <p className="text-xs text-green-700 mt-2 flex items-center">
-              <Eye className="h-3 w-3 mr-1" />
-              {stats ? `${stats.disk.used}GB / ${stats.disk.total}GB` : 'Loading...'}
-            </p>
+            <p className="text-xs text-green-700 mt-2">{stats ? `${stats.disk.used}GB / ${stats.disk.total}GB` : 'Loading...'}</p>
             {stats && (
               <div className="w-full bg-green-200 rounded-full h-2 mt-3">
                 <div 
@@ -157,159 +180,142 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-50 to-orange-100 hover:shadow-xl transition-shadow">
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-50 to-orange-100 hover:shadow-xl transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-orange-900">Uptime</CardTitle>
-            <div className="h-10 w-10 rounded-full bg-orange-500/20 flex items-center justify-center">
-              <Clock className="h-5 w-5 text-orange-600" />
-            </div>
+            <CardTitle className="text-sm font-medium text-orange-900">System Status</CardTitle>
+            <Activity className="h-5 w-5 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-900">
-              {loading ? '...' : stats ? formatUptime(stats.uptimeSeconds) : 'N/A'}
+            <div className="flex items-center space-x-2">
+              <Badge className="bg-green-600 hover:bg-green-700">Healthy</Badge>
             </div>
-            <p className="text-xs text-orange-700 mt-2 flex items-center">
-              <CheckCircle2 className="h-3 w-3 mr-1" />
-              99.9% uptime this month
-            </p>
+            <p className="text-xs text-orange-700 mt-2">Uptime: {stats ? formatUptime(stats.uptimeSeconds) : 'N/A'}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Quick Actions & Info Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {user?.role === 'super_admin' && (
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all">
-            <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-t-lg">
-              <CardTitle className="flex items-center">
-                <Users className="mr-2 h-5 w-5" />
-                Admin Panel
-              </CardTitle>
-              <CardDescription className="text-blue-100">
-                Manage users and permissions
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <Link href="/dashboard/admin">
-                <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                  Open Admin Panel
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card className="border-0 shadow-lg hover:shadow-xl transition-all">
+      {/* Charts Section */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* CPU Usage Chart */}
+        <Card className="border-0 shadow-lg col-span-2 lg:col-span-1">
           <CardHeader>
-            <CardTitle className="flex items-center text-gray-900">
-              <Activity className="mr-2 h-5 w-5 text-blue-600" />
-              System Load Average
+            <CardTitle className="flex items-center">
+              <TrendingUp className="mr-2 h-5 w-5 text-blue-600" />
+              CPU & Memory Usage (24h)
             </CardTitle>
-            <CardDescription>
-              Real-time system load metrics
-            </CardDescription>
+            <CardDescription>Real-time resource utilization</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">1 minute</span>
-              <span className="text-sm font-semibold text-gray-900">
-                {stats ? stats.load.one.toFixed(2) : '0.00'}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">5 minutes</span>
-              <span className="text-sm font-semibold text-gray-900">
-                {stats ? stats.load.five.toFixed(2) : '0.00'}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">15 minutes</span>
-              <span className="text-sm font-semibold text-gray-900">
-                {stats ? stats.load.fifteen.toFixed(2) : '0.00'}
-              </span>
-            </div>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={cpuHistory}>
+                <defs>
+                  <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                  </linearGradient>
+                  <linearGradient id="colorMemory" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="time" stroke="#6b7280" fontSize={12} />
+                <YAxis stroke="#6b7280" fontSize={12} />
+                <Tooltip />
+                <Area type="monotone" dataKey="cpu" stroke="#3b82f6" fillOpacity={1} fill="url(#colorCpu)" name="CPU %" />
+                <Area type="monotone" dataKey="memory" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorMemory)" name="Memory %" />
+              </AreaChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-lg hover:shadow-xl transition-all">
+        {/* Network Traffic Chart */}
+        <Card className="border-0 shadow-lg col-span-2 lg:col-span-1">
           <CardHeader>
-            <CardTitle className="flex items-center text-gray-900">
-              <Server className="mr-2 h-5 w-5 text-green-600" />
-              System Information
+            <CardTitle className="flex items-center">
+              <Activity className="mr-2 h-5 w-5 text-green-600" />
+              Network Traffic
             </CardTitle>
-            <CardDescription>
-              Server environment details
-            </CardDescription>
+            <CardDescription>Incoming vs Outgoing (MB/s)</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Platform</span>
-              <span className="font-medium text-gray-900 capitalize">
-                {stats?.platform || 'N/A'}
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Hostname</span>
-              <span className="font-medium text-gray-900">
-                {stats?.hostname || 'N/A'}
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">CPU Model</span>
-              <span className="font-medium text-gray-900 truncate max-w-[200px]" title={stats?.cpu.model}>
-                {stats?.cpu.model || 'N/A'}
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Last Updated</span>
-              <span className="font-medium text-green-600">
-                {stats ? new Date(stats.timestamp).toLocaleTimeString() : 'N/A'}
-              </span>
-            </div>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={networkData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="hour" stroke="#6b7280" fontSize={12} />
+                <YAxis stroke="#6b7280" fontSize={12} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="incoming" fill="#10b981" name="Incoming" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="outgoing" fill="#f59e0b" name="Outgoing" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent Activity */}
-      <Card className="border-0 shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center text-gray-900">
-            <Activity className="mr-2 h-5 w-5 text-blue-600" />
-            Recent Activity
-          </CardTitle>
-          <CardDescription>
-            Latest system events and logs
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-start space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-              <div className="w-2 h-2 mt-2 bg-green-600 rounded-full" />
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">User logged in</p>
-                <p className="text-sm text-gray-600">You signed in successfully from a new device</p>
-              </div>
-              <span className="text-sm text-gray-500">Just now</span>
+      {/* Bottom Section */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Resource Distribution */}
+        <Card className="border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle>Resource Distribution</CardTitle>
+            <CardDescription>Current usage breakdown</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={resourceDistribution}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  paddingAngle={5}
+                  dataKey="value"
+                  label={(entry) => `${entry.name}: ${entry.value}%`}
+                >
+                  {resourceDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Active Processes */}
+        <Card className="border-0 shadow-lg lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Active Processes</CardTitle>
+            <CardDescription>Top processes by resource usage</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {mockProcesses.map((process) => (
+                <div key={process.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{process.name}</p>
+                    <p className="text-sm text-gray-600">Status: {process.status}</p>
+                  </div>
+                  <div className="flex items-center space-x-4 text-sm">
+                    <div className="text-right">
+                      <p className="text-gray-600">CPU</p>
+                      <p className="font-semibold text-blue-600">{process.cpu}%</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-gray-600">Memory</p>
+                      <p className="font-semibold text-purple-600">{process.memory}MB</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="flex items-start space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-              <div className="w-2 h-2 mt-2 bg-blue-600 rounded-full" />
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">Health check completed</p>
-                <p className="text-sm text-gray-600">Server status verified - all systems operational</p>
-              </div>
-              <span className="text-sm text-gray-500">30s ago</span>
-            </div>
-            <div className="flex items-start space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-              <div className="w-2 h-2 mt-2 bg-purple-600 rounded-full" />
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">Dashboard accessed</p>
-                <p className="text-sm text-gray-600">Viewed system metrics and statistics</p>
-              </div>
-              <span className="text-sm text-gray-500">1m ago</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,8 @@
 import os from 'os';
-import checkDiskSpace from 'check-disk-space';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 interface MemoryInfo {
   total: number;
@@ -79,19 +82,31 @@ export class StatsService {
 
   private async getDiskInfo(): Promise<DiskInfo> {
     try {
-      // Check root drive (C: on Windows, / on Unix)
-      const diskPath = process.platform === 'win32' ? 'C:' : '/';
-      const diskSpace = await checkDiskSpace(diskPath);
+      // Windows command to get disk info for C: drive
+      const { stdout } = await execAsync('wmic logicaldisk where "DeviceID=\'C:\'" get Size,FreeSpace /format:list');
+      
+      // Parse the output
+      const lines = stdout.split('\n').filter(line => line.trim());
+      let size = 0;
+      let freeSpace = 0;
+      
+      lines.forEach(line => {
+        if (line.startsWith('FreeSpace=')) {
+          freeSpace = parseInt(line.split('=')[1]);
+        } else if (line.startsWith('Size=')) {
+          size = parseInt(line.split('=')[1]);
+        }
+      });
 
-      const total = diskSpace.size;
-      const free = diskSpace.free;
+      const total = size;
+      const free = freeSpace;
       const used = total - free;
 
       return {
         total: Math.round(total / (1024 * 1024 * 1024)), // GB
         used: Math.round(used / (1024 * 1024 * 1024)), // GB
         free: Math.round(free / (1024 * 1024 * 1024)), // GB
-        usedPercent: Math.round((used / total) * 100),
+        usedPercent: total > 0 ? Math.round((used / total) * 100) : 0,
       };
     } catch (error) {
       console.error('Failed to get disk info:', error);

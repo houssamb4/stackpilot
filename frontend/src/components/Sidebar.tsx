@@ -6,11 +6,13 @@ import { cn } from '@/lib/utils';
 import { 
   LayoutDashboard, 
   Users, 
-  Activity, 
+  Server, 
   Settings, 
   BarChart3,
   Shield,
-  Layers
+  Bell,
+  FileText,
+  LogOut
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -20,7 +22,7 @@ interface SidebarProps {
 
 export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const routes = [
     {
@@ -30,22 +32,28 @@ export function Sidebar({ className }: SidebarProps) {
       color: 'text-sky-500',
     },
     {
-      label: 'Activity',
-      icon: Activity,
-      href: '/dashboard/activity',
+      label: 'Servers',
+      icon: Server,
+      href: '/dashboard/servers',
       color: 'text-violet-500',
     },
     {
-      label: 'Analytics',
+      label: 'Metrics',
       icon: BarChart3,
-      href: '/dashboard/analytics',
+      href: '/dashboard/metrics',
       color: 'text-pink-700',
     },
     {
-      label: 'Monitoring',
-      icon: Layers,
-      href: '/dashboard/monitoring',
+      label: 'Alerts',
+      icon: Bell,
+      href: '/dashboard/alerts',
       color: 'text-orange-700',
+    },
+    {
+      label: 'Logs',
+      icon: FileText,
+      href: '/dashboard/logs',
+      color: 'text-green-600',
     },
   ];
 
@@ -116,16 +124,27 @@ export function Sidebar({ className }: SidebarProps) {
                 </div>
               </Link>
             ))}
-          </div>
-        </div>
-      )}
-
-      <div className="px-3 py-2 border-t border-white/10">
-        <div className="px-4 py-3 rounded-lg bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20">
-          <p className="text-xs font-semibold text-white mb-1">
-            {user?.name}
-          </p>
-          <p className="text-xs text-zinc-400">
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-white mb-1 truncate">
+                {user?.name}
+              </p>
+              <p className="text-xs text-zinc-400 truncate">
+                {user?.email}
+              </p>
+              <div className="mt-2">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-400">
+                  {user?.role.replace('_', ' ').toUpperCase()}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={logout}
+              className="ml-2 p-2 text-zinc-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+              title="Logout"
+            >
+              <LogOut className="h-4 w-4" />
+            </buttosName="text-xs text-zinc-400">
             {user?.email}
           </p>
           <div className="mt-2">
