@@ -13,6 +13,7 @@ interface Service extends RowDataPacket {
   executable_path: string;
   arguments: string;
   working_directory: string;
+  venv_path: string;
   status: string;
   pid: number;
   last_started_at: Date;
@@ -52,7 +53,7 @@ export const getService = async (req: Request, res: Response) => {
 
 export const createService = async (req: Request, res: Response) => {
   try {
-    const { name, description, executable_path, arguments: args, working_directory } = req.body;
+    const { name, description, executable_path, arguments: args, working_directory, venv_path } = req.body;
     const userId = (req as any).user?.id;
 
     if (!name || !executable_path) {
@@ -60,8 +61,8 @@ export const createService = async (req: Request, res: Response) => {
     }
 
     const [result] = await pool.query<ResultSetHeader>(
-      'INSERT INTO services (name, description, executable_path, arguments, working_directory, created_by) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, description || null, executable_path, args || null, working_directory || null, userId]
+      'INSERT INTO services (name, description, executable_path, arguments, working_directory, venv_path, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name, description || null, executable_path, args || null, working_directory || null, venv_path || null, userId]
     );
 
     res.status(201).json({ 
@@ -77,11 +78,11 @@ export const createService = async (req: Request, res: Response) => {
 export const updateService = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, description, executable_path, arguments: args, working_directory } = req.body;
+    const { name, description, executable_path, arguments: args, working_directory, venv_path } = req.body;
 
     const [result] = await pool.query<ResultSetHeader>(
-      'UPDATE services SET name = ?, description = ?, executable_path = ?, arguments = ?, working_directory = ? WHERE id = ?',
-      [name, description, executable_path, args, working_directory, id]
+      'UPDATE services SET name = ?, description = ?, executable_path = ?, arguments = ?, working_directory = ?, venv_path = ? WHERE id = ?',
+      [name, description, executable_path, args, working_directory, venv_path, id]
     );
 
     if (result.affectedRows === 0) {
@@ -151,8 +152,16 @@ export const startService = async (req: Request, res: Response) => {
     const args = service.arguments ? service.arguments.split(' ').filter(arg => arg.trim()) : [];
     const workingDir = service.working_directory || undefined;
 
+    // Determine executable path (use venv python if provided)
+    let executablePath = service.executable_path;
+    if (service.venv_path && service.venv_path.trim()) {
+      // Use Python from virtual environment
+      const venvPython = `${service.venv_path}\\Scripts\\python.exe`;
+      executablePath = venvPython;
+    }
+
     // Start the process
-    const childProcess = spawn(service.executable_path, args, {
+    const childProcess = spawn(executablePath, args, {
       cwd: workingDir,
       shell: true,
     });

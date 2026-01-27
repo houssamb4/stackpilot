@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Menu, Bell, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Loader } from '@/components/Loader';
 
 export default function DashboardLayout({
   children,
@@ -27,7 +28,10 @@ export default function DashboardLayout({
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-lg font-medium text-gray-600">Loading...</div>
+        <div className="text-center">
+          <Loader size={48} color="#10b981" />
+          <p className="mt-4 text-gray-600 font-medium">Loading dashboard...</p>
+        </div>
       </div>
     );
   }

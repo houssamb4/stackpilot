@@ -2,11 +2,11 @@ import mysql from 'mysql2/promise';
 import { config } from '../config/env';
 import { logger } from '../config/logger';
 
-let pool: mysql.Pool | null = null;
+let poolInstance: mysql.Pool | null = null;
 
 export const createPool = (): mysql.Pool => {
-  if (!pool) {
-    pool = mysql.createPool({
+  if (!poolInstance) {
+    poolInstance = mysql.createPool({
       host: config.DATABASE_HOST,
       port: config.DATABASE_PORT,
       user: config.DATABASE_USER,
@@ -22,24 +22,38 @@ export const createPool = (): mysql.Pool => {
     logger.info(`MySQL pool created for database: ${config.DATABASE_NAME}`);
   }
 
-  return pool;
+  return poolInstance;
+};
+
+// Export pool for direct access
+export const pool = {
+  query: async <T = any>(sql: string, params?: any[]): Promise<[T, any]> => {
+    const dbPool = createPool();
+    return dbPool.execute(sql, params) as Promise<[T, any]>;
+  },
+  execute: async <T = any>(sql: string, params?: any[]): Promise<[T, any]> => {
+    const dbPool = createPool();
+    return dbPool.execute(sql, params) as Promise<[T, any]>;
+  },
+  getConnection: async (): Promise<mysql.PoolConnection> => {
+    const dbPool = createPool();
+    return dbPool.getConnection();
+  }
 };
 
 export const getConnection = async (): Promise<mysql.PoolConnection> => {
-  const dbPool = createPool();
-  return dbPool.getConnection();
+  return pool.getConnection();
 };
 
 export const query = async <T = any>(sql: string, params?: any[]): Promise<T> => {
-  const dbPool = createPool();
-  const [rows] = await dbPool.execute(sql, params);
+  const [rows] = await pool.query(sql, params);
   return rows as T;
 };
 
 export const closePool = async (): Promise<void> => {
-  if (pool) {
-    await pool.end();
-    pool = null;
+  if (poolInstance) {
+    await poolInstance.end();
+    poolInstance = null;
     logger.info('MySQL pool closed');
   }
 };
@@ -47,7 +61,7 @@ export const closePool = async (): Promise<void> => {
 // Test database connection
 export const testConnection = async (): Promise<boolean> => {
   try {
-    const connection = await getConnection();
+    const connection = await pool.getConnection();
     await connection.ping();
     connection.release();
     logger.info('Database connection successful');

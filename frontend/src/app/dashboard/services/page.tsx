@@ -16,6 +16,7 @@ interface Service {
   executable_path: string;
   arguments: string;
   working_directory: string;
+  venv_path: string;
   status: 'stopped' | 'running' | 'failed';
   pid: number;
   last_started_at: string;
@@ -44,6 +45,7 @@ export default function ServicesManagementPage() {
     executable_path: '',
     arguments: '',
     working_directory: '',
+    venv_path: '',
   });
 
   useEffect(() => {
@@ -112,6 +114,7 @@ export default function ServicesManagementPage() {
           executable_path: '',
           arguments: '',
           working_directory: '',
+          venv_path: '',
         });
         setShowAddForm(false);
         fetchServices();
@@ -262,6 +265,15 @@ export default function ServicesManagementPage() {
                   onChange={(e) => setFormData({ ...formData, working_directory: e.target.value })}
                   placeholder="C:\path\to\working\directory"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Virtual Environment Path (Optional)</label>
+                <Input
+                  value={formData.venv_path}
+                  onChange={(e) => setFormData({ ...formData, venv_path: e.target.value })}
+                  placeholder="C:\path\to\venv"
+                />
+                <p className="text-xs text-gray-500 mt-1">For Python services: path to venv folder (e.g., C:\Projects\myapp\venv)</p>
               </div>
               <div className="flex space-x-2">
                 <Button type="submit" className="bg-green-600 hover:bg-green-700">
